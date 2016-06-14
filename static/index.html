@@ -8,33 +8,134 @@
         width: 100%;
         max-width: 800px;
       }
+      .sw-opts {
+        display: none;
+      }
+      .sw-registered .sw-opts {
+        display: block;
+      }
+      .sw-registered .sw-register {
+        display: none;
+      }
     </style>
+    <script>
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        document.documentElement.className += ' sw-registered';
+      }
+    </script>
   </head>
   <body>
     <h1>Test video</h1>
-    <h2>Select serving type</h2>
+    <h2>Service worker</h2>
+    <p class="sw-register">
+      <button class="sw-reg">Register</button> <span class="sw-register-status"></span>
+    </p>
+    <div class="sw-opts">
+      <p><button class="sw-unreg">Unregister</button></p>
+      <div><label><input type="radio" name="sw-type" value="no-intercept" checked> No intercept</label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-fetch"> <code>respondWith(fetch(event.request))</code></label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-cache"> <code>respondWith(cache.match(event.request))</code></label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-manual"> Generate ranged response manually</label></div>
+      <p class="cache-status">&nbsp;</p>
+    </div>
+
+    <h2>Server</h2>
+
+    <label>Rate: <input type="range" min="102400" value="204800" max="20971520" class="rate"> <span class="rate-val"></span> k/s</label>
 
     <ul class="vid-selector">
       <li><button data-src="/vid-200.mp4">200 response</button></li>
+      <li><button data-src="/vid-200-chunked.mp4">200 response chunked</button></li>
       <li><button data-src="/vid-range.mp4">Exactly requested range</button></li>
       <li><button data-src="/vid-more-range.mp4">Over requested range</button></li>
       <li><button data-src="/vid-less-range.mp4">Less than requested range (but includes start)</button></li>
-      <li><button data-src="/test-vid.mp4">Express static</button></li>
+      <li><button data-src="/test-vid.mp4">Express static (cached by service worker)</button></li>
     </ul>
 
     <div class="target"></div>
 
     <script>
-      var target = document.querySelector('.target');
-      document.querySelector('.vid-selector').addEventListener('click', event => {
-        if (event.target.tagName != 'BUTTON') return;
-        event.preventDefault();
-        target.innerHTML = '';
-        var vid = document.createElement('video');
-        vid.src = event.target.getAttribute('data-src');
-        vid.controls = true;
-        target.appendChild(vid);
-      });
+      (function() {
+        var status = document.querySelector('.sw-register-status');
+
+        document.querySelector('.sw-reg').addEventListener('click', function(event) {
+          event.preventDefault();
+          status.textContent = 'Registering...';
+
+          navigator.serviceWorker.register('/sw.js').then(function() {
+            return navigator.serviceWorker.ready;
+          }).then(function() {
+            location.reload();
+          }).catch(function(err) {
+            status.textContent = 'Error: ' + err.message;
+          });
+        });
+      }());
+
+      (function() {
+        if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+        
+        var status = document.querySelector('.cache-status');
+
+        caches.open('range-test').then(function(cache) {
+          return cache.match('/test-vid.mp4').then(function(response) {
+            if (response) {
+              return;
+            }
+            
+            status.textContent = 'Caching video...';
+            return fetch('/test-vid.mp4').then(function(response) {
+              return cache.put('/test-vid.mp4', response);
+            });
+          });
+        }).then(function() {
+          status.textContent = 'Video cached';
+        }).catch(function(err) {
+          status.textContent = 'Error caching video: ' + err.message;
+        });
+      }());
+
+      (function() {
+        document.querySelector('.sw-unreg').addEventListener('click', function(event) {
+          event.preventDefault();
+          navigator.serviceWorker.getRegistration().then(function(reg) {
+            return reg.unregister();
+          }).then(function() {
+            location.reload();
+          });
+        });
+      }());
+
+      (function() {
+        var target = document.querySelector('.target');
+        var rate = document.querySelector('.rate');
+        var rateVal = document.querySelector('.rate-val');
+        var swRadios = Array.prototype.slice.call(document.querySelectorAll('[name=sw-type]'));
+
+        rate.value = 204800;
+
+        function updateRateVal() {
+          rateVal.textContent = Math.round(rate.value/1024);
+        }
+
+        updateRateVal();
+
+        rate.addEventListener('input', updateRateVal);
+
+        document.querySelector('.vid-selector').addEventListener('click', function(event) {
+          if (event.target.tagName != 'BUTTON') return;
+          event.preventDefault();
+          target.innerHTML = '';
+          var swValue = swRadios.filter(function(radio) {
+            return radio.checked;
+          })[0].value;
+          
+          var vid = document.createElement('video');
+          vid.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue;
+          vid.controls = true;
+          target.appendChild(vid);
+        });
+      }());
     </script>
   </body>
 </html>
