@@ -12,6 +12,29 @@
   </head>
   <body>
     <h1>Test video</h1>
-    <video src="test-vid.mp4"></video>
+    <h2>Select serving type</h2>
+
+    <ul class="vid-selector">
+      <li><button data-src="/vid-200.mp4">200 response</button></li>
+      <li><button data-src="/vid-range.mp4">Exactly requested range</button></li>
+      <li><button data-src="/vid-more-range.mp4">Over requested range</button></li>
+      <li><button data-src="/vid-less-range.mp4">Less than requested range (but includes start)</button></li>
+      <li><button data-src="/test-vid.mp4">Express static</button></li>
+    </ul>
+
+    <div class="target"></div>
+
+    <script>
+      var target = document.querySelector('.target');
+      document.querySelector('.vid-selector').addEventListener('click', event => {
+        if (event.target.tagName != 'BUTTON') return;
+        event.preventDefault();
+        target.innerHTML = '';
+        var vid = document.createElement('video');
+        vid.src = event.target.getAttribute('data-src');
+        vid.controls = true;
+        target.appendChild(vid);
+      });
+    </script>
   </body>
 </html>
