@@ -34,8 +34,10 @@
       <p><button class="sw-unreg">Unregister</button></p>
       <div><label><input type="radio" name="sw-type" value="no-intercept" checked> No intercept</label></div>
       <div><label><input type="radio" name="sw-type" value="respond-fetch"> <code>respondWith(fetch(event.request))</code></label></div>
-      <div><label><input type="radio" name="sw-type" value="respond-cache"> <code>respondWith(cache.match(event.request))</code></label></div>
-      <div><label><input type="radio" name="sw-type" value="respond-manual"> Generate ranged response manually</label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-fetch-url"> <code>respondWith(fetch(event.request.url))</code></label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-cache-request"> <code>respondWith(caches.match(event.request), {ignoreSearch: true})</code></label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-cache"> <code>respondWith(caches.match('/test-vid.mp4'))</code></label></div>
+      <div><label><input type="checkbox" class="sw-polyfill"> Construct ranged response manually</label></div>
       <p class="cache-status">&nbsp;</p>
     </div>
 
@@ -111,6 +113,7 @@
         var rate = document.querySelector('.rate');
         var rateVal = document.querySelector('.rate-val');
         var swRadios = Array.prototype.slice.call(document.querySelectorAll('[name=sw-type]'));
+        var swPolyfill = document.querySelector('.sw-polyfill');
 
         rate.value = 204800;
 
@@ -131,7 +134,7 @@
           })[0].value;
           
           var vid = document.createElement('video');
-          vid.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue;
+          vid.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue + "&polly-range=" + Number(swPolyfill.checked);
           vid.controls = true;
           target.appendChild(vid);
         });

@@ -75,7 +75,7 @@ app.use('/', (req, res, next) => {
 
 app.use('/', express.static(`${__dirname}/static/`));
 
-app.get('/vid-200.mp4', (req, res) => {
+function serve200(req, res) {
   console.log(`${req.path} - serving whole vid`);
   const stream = getFileStream({
     rate: Number(req.query.rate)
@@ -89,7 +89,9 @@ app.get('/vid-200.mp4', (req, res) => {
     res.status(200);
     stream.pipe(res);
   });
-});
+}
+
+app.get('/vid-200.mp4', serve200);
 
 app.get('/vid-200-chunked.mp4', (req, res) => {
   console.log(`${req.path} - serving whole vid chunked`);
@@ -108,7 +110,10 @@ app.get('/vid-range.mp4', (req, res) => {
   res.set('Cache-Control', 'no-cache');
 
   promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
-    const rangeVal = req.get('Range') ? req.get('Range').trim() : '0-';
+    const rangeVal = req.get('Range') && req.get('Range').trim();
+    res.set('Accept-Ranges', 'bytes');
+    if (!rangeVal) return serve200(req, res);
+
     const range = parseRange(stat.size, rangeVal);
 
     const stream = getFileStream({
@@ -118,7 +123,6 @@ app.get('/vid-range.mp4', (req, res) => {
     });
 
     console.log(`${req.path} - serving range ${range.start}-${range.end}/${stat.size}`);
-    res.set('Accept-Ranges', 'bytes');
     res.set('Content-Length', (range.end - range.start) + 1);
     res.set('Content-Range', createContentRange(range.start, range.end, stat.size));
     res.status(206);
@@ -134,7 +138,10 @@ app.get('/vid-less-range.mp4', (req, res) => {
   res.set('Cache-Control', 'no-cache');
 
   promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
-    const rangeVal = req.get('Range') ? req.get('Range').trim() : '0-';
+    const rangeVal = req.get('Range') && req.get('Range').trim();
+    res.set('Accept-Ranges', 'bytes');
+    if (!rangeVal) return serve200(req, res);
+
     const range = parseRange(stat.size, rangeVal);
     
     if (range.end - range.start > 50000) {
@@ -148,7 +155,6 @@ app.get('/vid-less-range.mp4', (req, res) => {
     });
 
     console.log(`${req.path} - serving less range ${range.start}-${range.end}/${stat.size}`);
-    res.set('Accept-Ranges', 'bytes');
     res.set('Content-Length', (range.end - range.start) + 1);
     res.set('Content-Range', createContentRange(range.start, range.end, stat.size));
     res.status(206);
@@ -164,7 +170,10 @@ app.get('/vid-more-range.mp4', (req, res) => {
   res.set('Cache-Control', 'no-cache');
 
   promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
-    const rangeVal = req.get('Range') ? req.get('Range').trim() : '0-';
+    const rangeVal = req.get('Range') && req.get('Range').trim();
+    res.set('Accept-Ranges', 'bytes');
+    if (!rangeVal) return serve200(req, res);
+
     const range = parseRange(stat.size, rangeVal);
     
     range.start = Math.max(0, range.start - 100000);
@@ -177,7 +186,6 @@ app.get('/vid-more-range.mp4', (req, res) => {
     });
 
     console.log(`${req.path} - serving more range ${range.start}-${range.end}/${stat.size}`);
-    res.set('Accept-Ranges', 'bytes');
     res.set('Content-Length', (range.end - range.start) + 1);
     res.set('Content-Range', createContentRange(range.start, range.end, stat.size));
     res.status(206);
