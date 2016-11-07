@@ -134,7 +134,7 @@
           })[0].value;
           
           var vid = document.createElement('video');
-          vid.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue + "&polly-range=" + Number(swPolyfill.checked);
+          vid.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue + "&poly-range=" + Number(swPolyfill.checked);
           vid.controls = true;
           target.appendChild(vid);
         });
