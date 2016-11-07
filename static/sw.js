@@ -64,7 +64,7 @@ self.addEventListener('fetch', event => {
   if (!url.pathname.endsWith('.mp4')) return;
 
   const swType = url.searchParams.get('sw') || 'no-intercept';
-  const pollyfilRange = url.searchParams.get('polly-range') === "1";
+  const polyfilRange = url.searchParams.get('poly-range') === "1";
 
   console.log("SW Type", swType);
 
@@ -77,7 +77,7 @@ self.addEventListener('fetch', event => {
       if (swType == 'respond-cache') return caches.match('/test-vid.mp4');
       return caches.match(event.request, {ignoreSearch: true});
     }).then(response => {
-      if (!pollyfilRange) return response;
+      if (!polyfilRange) return response;
       return createRangedResponse(event.request, response);
     }).then(response => {
       console.log(event.request, response);
