@@ -1,9 +1,13 @@
 const fs = require('fs');
+const {promisify} = require('util');
+
+const stat = promisify(fs.stat);
 
 const Throttle = require('stream-throttle').Throttle;
 const express = require('express');
 const app = express();
 const port = 3000;
+
 
 function promiseCall(obj, name, ...args) {
   return new Promise((resolve, reject) => {
@@ -53,7 +57,7 @@ function createContentRange(start, end, total) {
 }
 
 function getFileStream(opts = {}) {
-  return fs.createReadStream(`${__dirname}/static/test-vid.mp4`, opts)
+  return fs.createReadStream(`${__dirname}/static/test.wav`, opts)
     .pipe(new Throttle({ rate: opts.rate }));
 }
 
@@ -75,46 +79,46 @@ app.use('/', (req, res, next) => {
 
 app.use('/', express.static(`${__dirname}/static/`));
 
-function serve200(req, res) {
-  console.log(`${req.path} - serving whole vid`);
+async function serve200(req, res) {
+  console.log(`${req.path} - serving whole audio`);
   const stream = getFileStream({
     rate: Number(req.query.rate)
   });
 
-  res.set('Content-Type', 'video/mp4');
+  res.set('Content-Type', 'audio/x-wav');
   res.set('Cache-Control', 'no-cache');
 
-  promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
-    res.set('Content-Length', stat.size);
-    res.status(200);
-    stream.pipe(res);
-  });
+  const statResult = await stat(`${__dirname}/static/test.wav`);
+  res.set('Content-Length', statResult.size);
+  res.status(200);
+  stream.pipe(res);
 }
 
-app.get('/vid-200.mp4', serve200);
+app.get('/200.wav', serve200);
 
-app.get('/vid-200-chunked.mp4', (req, res) => {
-  console.log(`${req.path} - serving whole vid chunked`);
+app.get('/200-chunked.wav', (req, res) => {
+  console.log(`${req.path} - serving whole audio chunked`);
   const stream = getFileStream({
     rate: Number(req.query.rate)
   });
 
-  res.set('Content-Type', 'video/mp4');
+  res.set('Content-Type', 'audio/x-wav');
   res.set('Cache-Control', 'no-cache');
   res.status(200);
   stream.pipe(res);
 });
 
-app.get('/vid-range.mp4', (req, res) => {
-  res.set('Content-Type', 'video/mp4');
+app.get('/range.wav', async (req, res) => {
+  res.set('Content-Type', 'audio/x-wav');
   res.set('Cache-Control', 'no-cache');
 
-  promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
+  try {
+    const statResult = await stat(`${__dirname}/static/test.wav`);
     const rangeVal = req.get('Range') && req.get('Range').trim();
     res.set('Accept-Ranges', 'bytes');
     if (!rangeVal) return serve200(req, res);
 
-    const range = parseRange(stat.size, rangeVal);
+    const range = parseRange(statResult.size, rangeVal);
 
     const stream = getFileStream({
       rate: Number(req.query.rate),
@@ -122,27 +126,30 @@ app.get('/vid-range.mp4', (req, res) => {
       end: range.end
     });
 
-    console.log(`${req.path} - serving range ${range.start}-${range.end}/${stat.size}`);
+    console.log(`${req.path} - serving range ${range.start}-${range.end}/${statResult.size}`);
     res.set('Content-Length', (range.end - range.start) + 1);
-    res.set('Content-Range', createContentRange(range.start, range.end, stat.size));
+    res.set('Content-Range', createContentRange(range.start, range.end, statResult.size));
     res.status(206);
     stream.pipe(res);
-  }).catch(err => {
+  }
+  catch (err) {
     res.status(500).send(err.message);
     console.error(err.message);
-  });
+  }
+
 });
 
-app.get('/vid-less-range.mp4', (req, res) => {
-  res.set('Content-Type', 'video/mp4');
+app.get('/less-range.wav', async (req, res) => {
+  res.set('Content-Type', 'audio/x-wav');
   res.set('Cache-Control', 'no-cache');
 
-  promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
+  try {
+    const statResult = await stat(`${__dirname}/static/test.wav`);
     const rangeVal = req.get('Range') && req.get('Range').trim();
     res.set('Accept-Ranges', 'bytes');
     if (!rangeVal) return serve200(req, res);
 
-    const range = parseRange(stat.size, rangeVal);
+    const range = parseRange(statResult.size, rangeVal);
     
     if (range.end - range.start > 50000) {
       range.end = Math.round(Math.max(range.start, range.end - ((range.end - range.start) * 0.8)));
@@ -154,27 +161,29 @@ app.get('/vid-less-range.mp4', (req, res) => {
       end: range.end
     });
 
-    console.log(`${req.path} - serving less range ${range.start}-${range.end}/${stat.size}`);
+    console.log(`${req.path} - serving less range ${range.start}-${range.end}/${statResult.size}`);
     res.set('Content-Length', (range.end - range.start) + 1);
-    res.set('Content-Range', createContentRange(range.start, range.end, stat.size));
+    res.set('Content-Range', createContentRange(range.start, range.end, statResult.size));
     res.status(206);
     stream.pipe(res);
-  }).catch(err => {
+  }
+  catch (err) {
     res.status(500).send(err.message);
     console.error(err.message);
-  });
+  }
 });
 
-app.get('/vid-more-range.mp4', (req, res) => {
-  res.set('Content-Type', 'video/mp4');
+app.get('/more-range.wav', async (req, res) => {
+  res.set('Content-Type', 'audio/x-wav');
   res.set('Cache-Control', 'no-cache');
 
-  promiseCall(fs, 'stat', `${__dirname}/static/test-vid.mp4`).then(stat => {
+  try {
+    const statResult = await stat(`${__dirname}/static/test.wav`);
     const rangeVal = req.get('Range') && req.get('Range').trim();
     res.set('Accept-Ranges', 'bytes');
     if (!rangeVal) return serve200(req, res);
 
-    const range = parseRange(stat.size, rangeVal);
+    const range = parseRange(statResult.size, rangeVal);
     
     range.start = Math.max(0, range.start - 100000);
     range.end = Math.min(range.end, range.end + 100000);
@@ -185,15 +194,16 @@ app.get('/vid-more-range.mp4', (req, res) => {
       end: range.end
     });
 
-    console.log(`${req.path} - serving more range ${range.start}-${range.end}/${stat.size}`);
+    console.log(`${req.path} - serving more range ${range.start}-${range.end}/${statResult.size}`);
     res.set('Content-Length', (range.end - range.start) + 1);
-    res.set('Content-Range', createContentRange(range.start, range.end, stat.size));
+    res.set('Content-Range', createContentRange(range.start, range.end, statResult.size));
     res.status(206);
     stream.pipe(res);
-  }).catch(err => {
+  }
+  catch (err) {
     res.status(500).send(err.message);
     console.error(err.message);
-  });
+  }
 });
 
 app.listen(port, () => {

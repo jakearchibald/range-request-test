@@ -60,8 +60,8 @@ function createRangedResponse(request, response) {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Only handling the video requests
-  if (!url.pathname.endsWith('.mp4')) return;
+  // Only handling the audio requests
+  if (!url.pathname.endsWith('.wav')) return;
 
   const swType = url.searchParams.get('sw') || 'no-intercept';
   const polyfilRange = url.searchParams.get('poly-range') === "1";
@@ -74,7 +74,7 @@ self.addEventListener('fetch', event => {
     Promise.resolve().then(() => {
       if (swType == 'respond-fetch') return fetch(event.request);
       if (swType == 'respond-fetch-url') return fetch(event.request.url);
-      if (swType == 'respond-cache') return caches.match('/test-vid.mp4');
+      if (swType == 'respond-cache') return caches.match('/test.wav');
       return caches.match(event.request, {ignoreSearch: true});
     }).then(response => {
       if (!polyfilRange) return response;

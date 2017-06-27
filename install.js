@@ -1,9 +1,9 @@
 const fs = require('fs');
 const ProgressBar = require('progress');
-const http = require('http');
+const https = require('https');
 const through2 = require('through2');
 
-const destination = `${__dirname}/static/test-vid.mp4`;
+const destination = `${__dirname}/static/test.wav`;
 
 try {
   fs.accessSync(destination);
@@ -12,35 +12,30 @@ try {
 } catch(e) {}
 
 const out = fs.createWriteStream(destination);
-
-const req = http.request({
-  host: 'download.blender.org',
-  port: 80,
-  path: '/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4'
-});
+const req = https.request('https://upload.wikimedia.org/wikipedia/commons/0/01/Higher_Intelligent_Probes.wav');
 
 req.on('error', err => {
-  console.log(`Error fetching test video: Couldn't connect to server`);
+  console.log(`Error fetching test audio: Couldn't connect to server`);
   fs.unlinkSync(destination);
   process.exit(1);
 });
 
 req.on('response', res => {
   if (res.statusCode != 200) {
-    console.log(`Error fetching test video: Response status ${res.statusCode}`);
+    console.log(`Error fetching test audio: Response status ${res.statusCode}`);
     fs.unlinkSync(destination);
     process.exit(1);
   }
 
-  if (res.headers['content-type'] != 'video/mp4') {
-    console.log(`Error fetching test video: Unexpected content-type ${res.headers['content-type']}`);
+  if (res.headers['content-type'] != 'audio/x-wav') {
+    console.log(`Error fetching test audio: Unexpected content-type ${res.headers['content-type']}`);
     fs.unlinkSync(destination);
     process.exit(1);
   }
 
   const len = parseFloat(res.headers['content-length']);
 
-  const bar = new ProgressBar('Fetching test video [:bar] :percent :etas', {
+  const bar = new ProgressBar('Fetching test audio [:bar] :percent :etas', {
     complete: '=',
     incomplete: ' ',
     width: 20,
@@ -54,7 +49,7 @@ req.on('response', res => {
   })).pipe(out);
 
   stream.on('error', err => {
-    console.log(`Error fetching test video: ${err.message}`);
+    console.log(`Error fetching test audio: ${err.message}`);
     fs.unlinkSync(destination);
     process.exit(1);
   });

@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, minimum-scale=1.0">
     <title>Range request tests</title>
     <style>
-      video {
+      audio {
         width: 100%;
         max-width: 800px;
       }
@@ -25,7 +25,7 @@
     </script>
   </head>
   <body>
-    <h1>Test video</h1>
+    <h1>Test audio</h1>
     <h2>Service worker</h2>
     <p class="sw-register">
       <button class="sw-reg">Register</button> <span class="sw-register-status"></span>
@@ -36,22 +36,22 @@
       <div><label><input type="radio" name="sw-type" value="respond-fetch"> <code>respondWith(fetch(event.request))</code></label></div>
       <div><label><input type="radio" name="sw-type" value="respond-fetch-url"> <code>respondWith(fetch(event.request.url))</code></label></div>
       <div><label><input type="radio" name="sw-type" value="respond-cache-request"> <code>respondWith(caches.match(event.request), {ignoreSearch: true})</code></label></div>
-      <div><label><input type="radio" name="sw-type" value="respond-cache"> <code>respondWith(caches.match('/test-vid.mp4'))</code></label></div>
+      <div><label><input type="radio" name="sw-type" value="respond-cache"> <code>respondWith(caches.match('/test.wav'))</code></label></div>
       <div><label><input type="checkbox" class="sw-polyfill"> Construct ranged response manually</label></div>
       <p class="cache-status">&nbsp;</p>
     </div>
 
     <h2>Server</h2>
 
-    <label>Rate: <input type="range" min="102400" value="204800" max="20971520" class="rate"> <span class="rate-val"></span> k/s</label>
+    <label>Rate: <input type="range" min="102400" value="358400" max="20971520" class="rate"> <span class="rate-val"></span> k/s</label>
 
-    <ul class="vid-selector">
-      <li><button data-src="/vid-200.mp4">200 response</button></li>
-      <li><button data-src="/vid-200-chunked.mp4">200 response chunked</button></li>
-      <li><button data-src="/vid-range.mp4">Exactly requested range</button></li>
-      <li><button data-src="/vid-more-range.mp4">Over requested range</button></li>
-      <li><button data-src="/vid-less-range.mp4">Less than requested range (but includes start)</button></li>
-      <li><button data-src="/test-vid.mp4">Express static (cached by service worker)</button></li>
+    <ul class="audio-selector">
+      <li><button data-src="/200.wav">200 response</button></li>
+      <li><button data-src="/200-chunked.wav">200 response chunked</button></li>
+      <li><button data-src="/range.wav">Exactly requested range</button></li>
+      <li><button data-src="/more-range.wav">Over requested range</button></li>
+      <li><button data-src="/less-range.wav">Less than requested range (but includes start)</button></li>
+      <li><button data-src="/test.wav">Express static (cached by service worker)</button></li>
     </ul>
 
     <div class="target"></div>
@@ -80,20 +80,20 @@
         var status = document.querySelector('.cache-status');
 
         caches.open('range-test').then(function(cache) {
-          return cache.match('/test-vid.mp4').then(function(response) {
+          return cache.match('/test.wav').then(function(response) {
             if (response) {
               return;
             }
             
-            status.textContent = 'Caching video...';
-            return fetch('/test-vid.mp4').then(function(response) {
-              return cache.put('/test-vid.mp4', response);
+            status.textContent = 'Caching audio...';
+            return fetch('/test.wav').then(function(response) {
+              return cache.put('/test.wav', response);
             });
           });
         }).then(function() {
-          status.textContent = 'Video cached';
+          status.textContent = 'Audio cached';
         }).catch(function(err) {
-          status.textContent = 'Error caching video: ' + err.message;
+          status.textContent = 'Error caching audio: ' + err.message;
         });
       }());
 
@@ -115,8 +115,6 @@
         var swRadios = Array.prototype.slice.call(document.querySelectorAll('[name=sw-type]'));
         var swPolyfill = document.querySelector('.sw-polyfill');
 
-        rate.value = 204800;
-
         function updateRateVal() {
           rateVal.textContent = Math.round(rate.value/1024);
         }
@@ -125,7 +123,7 @@
 
         rate.addEventListener('input', updateRateVal);
 
-        document.querySelector('.vid-selector').addEventListener('click', function(event) {
+        document.querySelector('.audio-selector').addEventListener('click', function(event) {
           if (event.target.tagName != 'BUTTON') return;
           event.preventDefault();
           target.innerHTML = '';
@@ -133,10 +131,10 @@
             return radio.checked;
           })[0].value;
           
-          var vid = document.createElement('video');
-          vid.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue + "&poly-range=" + Number(swPolyfill.checked);
-          vid.controls = true;
-          target.appendChild(vid);
+          var audio = document.createElement('audio');
+          audio.src = event.target.getAttribute('data-src') + '?rate=' + rate.value + '&sw=' + swValue + "&poly-range=" + Number(swPolyfill.checked);
+          audio.controls = true;
+          target.appendChild(audio);
         });
       }());
     </script>
