@@ -10,19 +10,6 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = 3000;
 
-
-function promiseCall(obj, name, ...args) {
-  return new Promise((resolve, reject) => {
-    obj[name](...args, (err, result) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(result);
-    })
-  });
-}
-
 function parseRange(totalSize, rangeVal) {
   rangeVal = rangeVal.replace(/^bytes=/i, '');
 
@@ -295,7 +282,7 @@ app.get('/download', (req, res) => {
       res.set('Last-Modified', 'Wed, 12 Apr 2017 03:20:47 GMT');
     }
     else {
-      res.set('Last-Modified', 'Wed, 13 Apr 2017 05:25:40 GMT');
+      res.set('Last-Modified', 'Thu, 13 Apr 2017 05:25:40 GMT');
     }
   }
 
