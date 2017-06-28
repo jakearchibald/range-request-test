@@ -49,7 +49,8 @@
       <li><button data-src="/200.wav">200 response</button></li>
       <li><button data-src="/200-chunked.wav">200 response chunked</button></li>
       <li><button data-src="/range.wav">Exactly requested range</button></li>
-      <li><button data-src="/more-range.wav">Over requested range</button></li>
+      <li><button data-src="/more-range-at-start.wav">Ranges start earlier</button></li>
+      <li><button data-src="/more-range-at-end.wav">Ranges end later</button></li>
       <li><button data-src="/less-range.wav">Less than requested range (but includes start)</button></li>
       <li><button data-src="/test.wav">Express static (cached by service worker)</button></li>
     </ul>
@@ -136,6 +137,96 @@
           audio.controls = true;
           target.appendChild(audio);
         });
+      }());
+    </script>
+
+    <div class="download-test">
+      <h1>Test download</h1>
+
+      <label>Rate: <input type="range" min="10240" value="10240" max="20971520" class="dl-rate"> <span class="dl-rate-val"></span> k/s</label>
+
+      <p>Content-Length:</p>
+
+      <div class="content-length-opts">
+        <div><label><input type="radio" name="content-length" value="0" checked> None (but send up to 100MB)</label></div>
+        <div><label><input type="radio" name="content-length" value="104857600"> 100MB</label></div>
+        <div><label><input type="radio" name="content-length" value="209715200"> 200MB</label></div>
+      </div>
+
+      <p><label><input type="checkbox" class="accept-range"> Accept range</label></p>
+
+      <p><label><input type="checkbox" class="etag"> Include ETag (which changes when content changes)</label></p>
+      <p><label><input type="checkbox" class="last-modified"> Include Last-Modified (which changes when content changes)</label></p>
+
+      <p>Content: (it's this word over and over again)</p>
+
+      <div class="content-opts">
+        <div><label><input type="radio" name="content" value="CHEESE" checked> CHEESE</label></div>
+        <div><label><input type="radio" name="content" value="PETRIL"> PETRIL</label></div>
+      </div>
+
+      <p><button class="close-last">Close last download connection</button></p>
+
+      <p><a href="/download">Download</a></p>
+    </div>
+
+    <script>
+      (function() {
+        const rate = document.querySelector('.dl-rate');
+        const rateVal = document.querySelector('.dl-rate-val');
+        const contentLengthRadios = [...document.querySelectorAll('[name=content-length]')];
+        const etag = document.querySelector('.etag');
+        const lastModified = document.querySelector('.last-modified');
+        const acceptRange = document.querySelector('.accept-range');
+        const contentRadios = [...document.querySelectorAll('[name=content]')];
+
+        function updateRateVal() {
+          rateVal.textContent = Math.round(rate.value/1024);
+        }
+
+        updateRateVal();
+
+        rate.addEventListener('input', updateRateVal);
+
+        async function updateForm() {
+          const response = await fetch('/download-settings');
+          const data = await response.json();
+          rate.value = data.rate;
+
+          for (const radio of contentLengthRadios) {
+            radio.checked = data.contentLength == Number(radio.value);
+          }
+
+          for (const radio of contentRadios) {
+            radio.checked = data.content == radio.value;
+          }
+
+          etag.checked = data.etags;
+          lastModified.checked = data.lastModified;
+          acceptRange.checked = data.acceptRange;
+          updateRateVal();
+        }
+
+        updateForm();
+
+        document.querySelector('.close-last').addEventListener('click', () => {
+          fetch('/download-close', {method: 'POST'});
+        });
+
+        document.querySelector('.download-test').addEventListener('change', event => {
+          fetch('/download-settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              rate: rate.value,
+              contentLength: Number(contentLengthRadios.find(r => r.checked).value),
+              etags: etag.checked,
+              acceptRange: acceptRange.checked,
+              lastModified: lastModified.checked,
+              content: contentRadios.find(r => r.checked).value
+            })
+          })
+        }, true);
       }());
     </script>
   </body>

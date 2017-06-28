@@ -1,10 +1,12 @@
 const fs = require('fs');
 const {promisify} = require('util');
+const Readable = require('stream').Readable;
 
 const stat = promisify(fs.stat);
 
 const Throttle = require('stream-throttle').Throttle;
 const express = require('express');
+const bodyParser = require('body-parser');
 const app = express();
 const port = 3000;
 
@@ -60,6 +62,8 @@ function getFileStream(opts = {}) {
   return fs.createReadStream(`${__dirname}/static/test.wav`, opts)
     .pipe(new Throttle({ rate: opts.rate }));
 }
+
+app.use(bodyParser.json());
 
 app.use('/', (req, res, next) => {
   const rangeVal = req.get('Range');
@@ -173,7 +177,7 @@ app.get('/less-range.wav', async (req, res) => {
   }
 });
 
-app.get('/more-range.wav', async (req, res) => {
+app.get('/more-range-at-start.wav', async (req, res) => {
   res.set('Content-Type', 'audio/x-wav');
   res.set('Cache-Control', 'no-cache');
 
@@ -186,7 +190,6 @@ app.get('/more-range.wav', async (req, res) => {
     const range = parseRange(statResult.size, rangeVal);
     
     range.start = Math.max(0, range.start - 100000);
-    range.end = Math.min(range.end, range.end + 100000);
 
     const stream = getFileStream({
       rate: Number(req.query.rate),
@@ -194,7 +197,7 @@ app.get('/more-range.wav', async (req, res) => {
       end: range.end
     });
 
-    console.log(`${req.path} - serving more range ${range.start}-${range.end}/${statResult.size}`);
+    console.log(`${req.path} - serving more range at start ${range.start}-${range.end}/${statResult.size}`);
     res.set('Content-Length', (range.end - range.start) + 1);
     res.set('Content-Range', createContentRange(range.start, range.end, statResult.size));
     res.status(206);
@@ -204,6 +207,132 @@ app.get('/more-range.wav', async (req, res) => {
     res.status(500).send(err.message);
     console.error(err.message);
   }
+});
+
+app.get('/more-range-at-end.wav', async (req, res) => {
+  res.set('Content-Type', 'audio/x-wav');
+  res.set('Cache-Control', 'no-cache');
+
+  try {
+    const statResult = await stat(`${__dirname}/static/test.wav`);
+    const rangeVal = req.get('Range') && req.get('Range').trim();
+    res.set('Accept-Ranges', 'bytes');
+    if (!rangeVal) return serve200(req, res);
+
+    const range = parseRange(statResult.size, rangeVal);
+
+    range.end = Math.min(statResult.size - 1, range.end + 100000);
+
+    const stream = getFileStream({
+      rate: Number(req.query.rate),
+      start: range.start,
+      end: range.end
+    });
+
+    console.log(`${req.path} - serving more range at end ${range.start}-${range.end}/${statResult.size}`);
+    res.set('Content-Length', (range.end - range.start) + 1);
+    res.set('Content-Range', createContentRange(range.start, range.end, statResult.size));
+    res.status(206);
+    stream.pipe(res);
+  }
+  catch (err) {
+    res.status(500).send(err.message);
+    console.error(err.message);
+  }
+});
+
+let rate = 10 * 1024;
+let contentLength = 0;
+let etags = false;
+let content = 'CHEESE';
+let acceptRange = false;
+let lastDownloadConnection = null;
+let lastModified = false;
+
+app.get('/download-settings', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.json({ rate, contentLength, etags, content, acceptRange, lastModified });
+});
+
+app.post('/download-settings', (req, res) => {
+  rate = Number(req.body.rate) || 10 * 1024;
+  contentLength = Number(req.body.contentLength) || 0;
+  etags = !!req.body.etags;
+  acceptRange = !!req.body.acceptRange;
+  lastModified = !!req.body.lastModified;
+  content = String(req.body.content || 'CHEESE');
+
+  res.set('Cache-Control', 'no-cache');
+  res.json({done: true});
+});
+
+app.post('/download-close', (req, res) => {
+  if (lastDownloadConnection) {
+    lastDownloadConnection.destroy();
+  }
+  res.json({done: true});
+});
+
+app.get('/download', (req, res) => {
+  lastDownloadConnection = req.connection;
+
+  const rangeVal = req.get('Range') && req.get('Range').trim();
+  const actualContentLength = contentLength || 100 * 1024 * 1024;
+  const range = acceptRange && rangeVal && parseRange(actualContentLength, rangeVal);
+
+  res.set('Content-Type', 'text/plain');
+  res.set('Cache-Control', 'no-cache');
+  res.set('Content-Disposition', 'attachment; filename="download.txt"');
+  if (acceptRange) res.set('Accept-Ranges', 'bytes');
+
+  let contentOffset = 0;
+  let bytesToSend = actualContentLength;
+
+  if (etags) res.set('ETag', `${content}-${contentLength}`);
+
+  if (lastModified) {
+    if (content == 'CHEESE') {
+      res.set('Last-Modified', 'Wed, 12 Apr 2017 03:20:47 GMT');
+    }
+    else {
+      res.set('Last-Modified', 'Wed, 13 Apr 2017 05:25:40 GMT');
+    }
+  }
+
+  if (range) {
+    contentOffset = range.start;
+    bytesToSend = (range.end - range.start) + 1;
+    res.set('Content-Length', bytesToSend);
+    res.set('Content-Range', createContentRange(range.start, range.end, contentLength));
+    res.status(206);
+  }
+  else {
+    if (contentLength) res.set('Content-Length', contentLength);
+    res.status(200);
+  }
+
+  new Readable({
+    read() {
+      if (!bytesToSend) {
+        this.push(null);
+        return;
+      }
+      let toSend = content;
+
+      if (contentOffset) {
+        toSend = toSend.slice(contentOffset % toSend.length);
+        contentOffset = 0;
+      }
+
+      if (toSend.length > bytesToSend) {
+        toSend = toSend.slice(0, bytesToSend);
+      }
+
+      bytesToSend -= toSend.length;
+
+      this.push(toSend);
+    }
+  }).pipe(new Throttle({ rate })).pipe(res);
 });
 
 app.listen(port, () => {

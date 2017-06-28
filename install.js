@@ -12,7 +12,7 @@ try {
 } catch(e) {}
 
 const out = fs.createWriteStream(destination);
-const req = https.request('https://upload.wikimedia.org/wikipedia/commons/0/01/Higher_Intelligent_Probes.wav');
+const req = https.request('https://upload.wikimedia.org/wikipedia/commons/3/32/Christofori_-_S.S._Modula_One.wav');
 
 req.on('error', err => {
   console.log(`Error fetching test audio: Couldn't connect to server`);
