@@ -174,11 +174,11 @@
       (function() {
         const rate = document.querySelector('.dl-rate');
         const rateVal = document.querySelector('.dl-rate-val');
-        const contentLengthRadios = [...document.querySelectorAll('[name=content-length]')];
+        const contentLengthRadios = Array.prototype.slice.call(document.querySelectorAll('[name=content-length]'));
         const etag = document.querySelector('.etag');
         const lastModified = document.querySelector('.last-modified');
         const acceptRange = document.querySelector('.accept-range');
-        const contentRadios = [...document.querySelectorAll('[name=content]')];
+        const contentRadios = Array.prototype.slice.call(document.querySelectorAll('[name=content]'));
 
         function updateRateVal() {
           rateVal.textContent = Math.round(rate.value/1024);
