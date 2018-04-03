@@ -34,7 +34,7 @@ function parseRange(totalSize, rangeVal) {
     result.start = parseFloat(rangeParts[0]);
     result.end = parseFloat(rangeParts[1]);
   }
-  
+
   if (isNaN(result.start) || isNaN(result.end)) throw Error('Invalid range (NaN)');
   if (result.end < result.start) throw Error('Invalid range (start before end)');
 
@@ -141,7 +141,7 @@ app.get('/less-range.wav', async (req, res) => {
     if (!rangeVal) return serve200(req, res);
 
     const range = parseRange(statResult.size, rangeVal);
-    
+
     if (range.end - range.start > 50000) {
       range.end = Math.round(Math.max(range.start, range.end - ((range.end - range.start) * 0.8)));
     }
@@ -175,7 +175,7 @@ app.get('/more-range-at-start.wav', async (req, res) => {
     if (!rangeVal) return serve200(req, res);
 
     const range = parseRange(statResult.size, rangeVal);
-    
+
     range.start = Math.max(0, range.start - 100000);
 
     const stream = getFileStream({
@@ -235,15 +235,17 @@ let content = 'CHEESE';
 let acceptRange = false;
 let lastDownloadConnection = null;
 let lastModified = false;
+let status = 200;
 
 app.get('/download-settings', (req, res) => {
   res.set('Cache-Control', 'no-cache');
-  res.json({ rate, contentLength, etags, content, acceptRange, lastModified });
+  res.json({ rate, contentLength, etags, content, acceptRange, lastModified, status });
 });
 
 app.post('/download-settings', (req, res) => {
   rate = Number(req.body.rate) || 10 * 1024;
   contentLength = Number(req.body.contentLength) || 0;
+  status = Number(req.body.status) || 200;
   etags = !!req.body.etags;
   acceptRange = !!req.body.acceptRange;
   lastModified = !!req.body.lastModified;
@@ -291,11 +293,11 @@ app.get('/download', (req, res) => {
     bytesToSend = (range.end - range.start) + 1;
     res.set('Content-Length', bytesToSend);
     res.set('Content-Range', createContentRange(range.start, range.end, contentLength));
-    res.status(206);
+    res.status(status === 200 ? 206 : status);
   }
   else {
     if (contentLength) res.set('Content-Length', contentLength);
-    res.status(200);
+    res.status(status);
   }
 
   new Readable({
